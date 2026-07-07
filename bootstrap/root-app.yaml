@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: root-app
+  namespace: argocd
+  # Prevents this root Application from being deleted by an accidental
+  # `argocd app delete` sweep - it's the anchor for everything else.
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    # --- REPLACE THIS with your actual GitHub repo URL ---
+    repoURL: https://github.com/KushDEBUG/gitops-platform.git
+    targetRevision: main
+    path: apps
+    directory:
+      # Recurse means: look inside apps/ AND any subfolders (apps/platform,
+      # apps/workloads) for Application manifests, not just the top level.
+      recurse: true
+
+  destination:
+    server: https://kubernetes.default.svc # "this same cluster" - no external cluster registration needed
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true    # if an Application YAML is deleted from Git, ArgoCD deletes the resource too
+      selfHeal: true  # if someone manually kubectl-edits a resource, ArgoCD reverts it - THIS is your drift-correction demo
+    syncOptions:
+      - CreateNamespace=true

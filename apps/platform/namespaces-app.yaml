@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: namespaces
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    # --- REPLACE THIS with your actual GitHub repo URL - same as root-app.yaml ---
+    repoURL: https://github.com/KushDEBUG/gitops-platform.git
+    targetRevision: main
+    path: clusters
+    directory:
+      recurse: false
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default # namespaces themselves are cluster-scoped, this is just ArgoCD's bookkeeping
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
