@@ -5,7 +5,7 @@ resources:
   - ../../base
 images:
   - name: nginxinc/nginx-unprivileged
-    newTag: "1.27.3"
+    newTag: "1.27.4"
 replicas:
   - name: myapp
     count: 2
