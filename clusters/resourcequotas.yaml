@@ -1,0 +1,44 @@
+# Sized for a 2x t4g.small cluster (~4 vCPU / 4GB total, minus system
+# overhead for CoreDNS/kube-proxy/aws-node/ArgoCD/etc). These are
+# deliberately modest - the point is to prove quota enforcement works,
+# not to model a real production capacity plan.
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: dev-quota
+  namespace: dev
+spec:
+  hard:
+    requests.cpu: "500m"
+    requests.memory: "512Mi"
+    limits.cpu: "1"
+    limits.memory: "1Gi"
+    pods: "10"
+
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: staging-quota
+  namespace: staging
+spec:
+  hard:
+    requests.cpu: "750m"
+    requests.memory: "768Mi"
+    limits.cpu: "1.5"
+    limits.memory: "1536Mi"
+    pods: "15"
+
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: prod-quota
+  namespace: prod
+spec:
+  hard:
+    requests.cpu: "1"
+    requests.memory: "1Gi"
+    limits.cpu: "2"
+    limits.memory: "2Gi"
+    pods: "20"
