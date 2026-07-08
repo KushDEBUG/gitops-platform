@@ -1,0 +1,130 @@
+# All three policies below are deliberately scoped to ONLY dev/staging/prod
+# via `match.any.resources.namespaces`. This is important: several platform
+# components you already deployed (Nginx Ingress, Cert-Manager's webhook,
+# ArgoCD itself) run as root or without every field these policies require,
+# because their upstream Helm charts were written before/without assuming
+# these constraints. Scoping to just your application namespaces means
+# Kyverno protects the workloads *you* control without breaking already
+# -working platform infrastructure - exactly how a real company would roll
+# this out (policy on app namespaces first, platform namespaces are a
+# separate, more careful exercise).
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-root-user
+  annotations:
+    policies.kyverno.io/title: Disallow Root User
+    policies.kyverno.io/description: >-
+      Containers must not run as root (UID 0). Prevents a compromised
+      container from having root-equivalent access to the node.
+spec:
+  validationFailureAction: Enforce # Enforce = block. (Audit = log-only, for comparison)
+  background: false
+  rules:
+    - name: check-runAsNonRoot
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - dev
+                - staging
+                - prod
+      validate:
+        message: "Containers must set securityContext.runAsNonRoot: true"
+        pattern:
+          spec:
+            =(securityContext):
+              =(runAsNonRoot): "true"
+            containers:
+              - =(securityContext):
+                  =(runAsNonRoot): "true"
+
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+  annotations:
+    policies.kyverno.io/title: Require Resource Requests and Limits
+    policies.kyverno.io/description: >-
+      Every container must declare CPU/memory requests and limits.
+      Prevents a single misbehaving pod from starving its neighbors -
+      the same principle as the ResourceQuotas, enforced at admission
+      time instead of relying only on the namespace-level ceiling.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: check-resources
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - dev
+                - staging
+                - prod
+      validate:
+        message: "Every container must set resources.requests and resources.limits for both cpu and memory"
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  requests:
+                    cpu: "?*"
+                    memory: "?*"
+                  limits:
+                    cpu: "?*"
+                    memory: "?*"
+
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/title: Disallow Latest Image Tag
+    policies.kyverno.io/description: >-
+      Images must be pinned to a specific, immutable tag. `:latest` (or no
+      tag at all) makes deployments non-reproducible - you can't know which
+      actual image version is running, and rollbacks become guesswork.
+spec:
+  validationFailureAction: Enforce
+  background: false
+  rules:
+    - name: require-image-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - dev
+                - staging
+                - prod
+      validate:
+        message: "An image tag is required (e.g. nginx:1.27, not just 'nginx')"
+        pattern:
+          spec:
+            containers:
+              - image: "*:*"
+    - name: validate-image-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - dev
+                - staging
+                - prod
+      validate:
+        message: "Using the mutable ':latest' tag is not allowed - pin a specific version"
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"

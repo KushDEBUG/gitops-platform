@@ -1,0 +1,35 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kyverno
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+
+  source:
+    repoURL: https://kyverno.github.io/kyverno
+    chart: kyverno
+    targetRevision: "3.3.3" # pinned
+    helm:
+      values: |
+        resources:
+          requests:
+            cpu: 20m
+            memory: 64Mi
+
+        # Single replica - this is a demo cluster, not HA production.
+        replicaCount: 1
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kyverno
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
