@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nginx-ingress
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+
+  source:
+    repoURL: https://kubernetes.github.io/ingress-nginx
+    chart: ingress-nginx
+    targetRevision: "4.11.3" # pinned
+    helm:
+      values: |
+        controller:
+          # ClusterIP instead of LoadBalancer - no AWS NLB gets provisioned,
+          # so this costs $0. Reach it via `kubectl port-forward` for testing.
+          # Flip to "LoadBalancer" here (one word) whenever you want a real
+          # public URL - e.g. briefly, right before recording your demo video.
+          service:
+            type: ClusterIP
+
+          resources:
+            requests:
+              cpu: 50m
+              memory: 90Mi
+
+          # Small cluster, small footprint - one replica is plenty for a
+          # demo project. Production would run 2+ for actual HA.
+          replicaCount: 1
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: nginx-ingress
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
