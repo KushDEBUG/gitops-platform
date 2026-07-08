@@ -7,6 +7,7 @@ metadata:
   # `argocd app delete` sweep - it's the anchor for everything else.
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+
 spec:
   project: default
 
@@ -26,7 +27,14 @@ spec:
 
   syncPolicy:
     automated:
-      prune: true    # if an Application YAML is deleted from Git, ArgoCD deletes the resource too
-      selfHeal: true  # if someone manually kubectl-edits a resource, ArgoCD reverts it - THIS is your drift-correction demo
+      prune: true       # if an Application YAML is deleted from Git, ArgoCD deletes the resource too
+      selfHeal: true    # if someone manually kubectl-edits a resource, ArgoCD reverts it - THIS is your drift-correction demo
     syncOptions:
       - CreateNamespace=true
+
+  ignoreDifferences:
+    - group: argoproj.io
+      kind: Application
+      jsonPointers:
+        - /operation
+        - /status
