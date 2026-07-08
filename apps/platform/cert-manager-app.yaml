@@ -1,0 +1,44 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cert-manager
+  namespace: argocd
+  annotations:
+    # Sync wave 0 = installed first. ArgoCD waits for this to be Healthy
+    # before touching anything in wave 1 (the ClusterIssuer, below).
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+
+  source:
+    repoURL: https://charts.jetstack.io
+    chart: cert-manager
+    targetRevision: "v1.16.2" # pinned - avoids surprise breaking changes on redeploy
+    helm:
+      values: |
+        # Installs cert-manager's CRDs (ClusterIssuer, Certificate, etc.)
+        # as part of this same release, instead of requiring a separate
+        # manual `kubectl apply` of CRDs first.
+        crds:
+          enabled: true
+
+        # Small footprint - this is a demo cluster with 2 small nodes,
+        # not a production fleet. Default resource requests are larger
+        # than we need.
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cert-manager
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true # cert-manager's CRDs are large; server-side apply avoids a
+                              # known "metadata.annotations too long" error some tools hit
